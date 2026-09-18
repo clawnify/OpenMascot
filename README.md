@@ -54,7 +54,7 @@ Two modes, one setting:
 
 ```bash
 pnpm install
-pnpm dev          # UI on :5173, API on :8794
+pnpm dev          # UI on :5173, API on :8787
 ```
 
 `pnpm test` runs the checks. `pnpm typecheck` and `pnpm build` are the other two

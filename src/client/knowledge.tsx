@@ -94,7 +94,7 @@ export function Knowledge({ mascotId, onError }: { mascotId: string; onError: (m
             hint="Until you add something, it will tell every visitor it does not know and ask them to leave a message. Read your homepage above to start."
           />
         ) : (
-          <ul className="grid gap-2">
+          <ul className="flex min-w-0 flex-col gap-2">
             {sources.map((s) => (
               <li key={s.id} className="rounded-lg bg-sunken p-3">
                 <div className="flex items-start gap-3">

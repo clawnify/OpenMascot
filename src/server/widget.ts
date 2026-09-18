@@ -77,6 +77,10 @@ const SCRIPT = String.raw`(function () {
     ".chip:hover{border-color:var(--accent);color:var(--accent)}",
     ".chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}",
     ".ask{padding:10px 16px;background:#fffbeb;border-top:1px solid #fde68a;display:flex;gap:6px}",
+    // An author-level display:flex beats the UA stylesheet's display:none for
+    // [hidden], so without this the email capture shows on every conversation
+    // from the first frame, before anyone has asked for a person.
+    ".ask[hidden]{display:none}",
     ".ask input{flex:1;min-width:0;border:1px solid #e4e4e7;border-radius:9px;padding:8px 10px;font-size:13px}",
     ".ask button{border:0;background:var(--accent);color:#fff;border-radius:9px;padding:8px 12px;font-size:13px;cursor:pointer}",
     ".bar{display:flex;gap:8px;padding:12px;border-top:1px solid #e4e4e7;background:#fff}",
@@ -210,7 +214,12 @@ const SCRIPT = String.raw`(function () {
         state.status = data.status;
         remember();
         (data.messages || []).forEach(add);
-        if (data.status !== "ai" && !state.asked) ask.hidden = false;
+        if (data.status !== "ai" && !state.asked) {
+          ask.hidden = false;
+          // Revealing the capture band shortens the log, so the message that
+          // triggered it ends up clipped unless we scroll again afterwards.
+          log.scrollTop = log.scrollHeight;
+        }
       })
       .catch(function () {
         thinking(false);
