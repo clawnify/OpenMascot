@@ -9,6 +9,13 @@
 // snippet, and a thread is read back only with the token this app issued for
 // it, so a guessed conversation id opens nothing. Read perimeter.ts before
 // adding anything here.
+//
+// CORS IS NOT THE GATE, and must never be mistaken for it. The platform serves
+// every declared public route with `Access-Control-Allow-Origin: *`, so at the
+// browser level any site on the internet may call these three routes. The
+// origin allowlist below is what actually refuses them, on the real request, in
+// this app. Removing it because "CORS already handles that" would silently open
+// every mascot to every website.
 
 import { get, query, run } from "../db.js";
 import { now, parseList, uid, type App } from "../env.js";
@@ -66,20 +73,23 @@ export function registerPublic(app: App) {
     );
   });
 
-  // ── Preflight ───────────────────────────────────────────────────────────
+  // ── Preflight, for local development only ───────────────────────────────
   //
-  // Answered for every origin, without a database read.
+  // On the platform this handler never runs. Declaring a path in
+  // `api.public_routes` IS the CORS declaration: the perimeter auto-allows the
+  // preflight for any declared route, answers it with a 204 at the edge without
+  // dispatching the app at all, and then sets its own CORS headers over
+  // whatever the app returned. An app that hand-rolls CORS middleware is
+  // writing dead code.
   //
-  // A preflight is not a security boundary and must not be treated as one. It
-  // carries no body, so the mascot key the widget posts is not available here,
-  // and it is the request that FOLLOWS which decides anything. Refusing the
-  // preflight only means the browser never sends that request, so the visitor
-  // sees a CORS failure instead of the app's own answer — which is how this
-  // route was broken: it looked for the key in the query string, the widget
-  // sends it in the body, and every visitor's first message failed.
+  // It exists because a widget cannot be developed without it. The local dev
+  // server runs this Worker with no perimeter in front, and the host page it is
+  // embedded on is necessarily a different origin from the API, so without this
+  // nothing here is reachable from a browser on a developer's machine.
   //
-  // Nothing leaks: the answer is identical whatever origin asks and whatever
-  // keys exist. Enforcement lives on the real request below.
+  // It answers every origin because a preflight decides nothing and carries no
+  // body — the mascot key the widget posts is not even available here. The
+  // request behind it is what gets checked.
   app.options("/api/public/*", (c) => c.body(null, 204, corsHeaders(c.req.header("Origin") ?? null)));
 
   // ── A visitor says something ────────────────────────────────────────────
