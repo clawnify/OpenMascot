@@ -68,18 +68,19 @@ export function registerPublic(app: App) {
 
   // ── Preflight ───────────────────────────────────────────────────────────
   //
-  // Answered for any origin the mascot allows. An unknown key and a disallowed
-  // origin are the same answer on purpose: a 403 that distinguishes them turns
-  // this route into an oracle for which keys exist.
-  app.options("/api/public/*", async (c) => {
-    const origin = c.req.header("Origin") ?? null;
-    const key = c.req.query("key") ?? "";
-    const m = key ? await mascotByKey(key) : null;
-    if (m && originAllowed(parseList(m.allowed_origins), origin)) {
-      return c.body(null, 204, corsHeaders(origin));
-    }
-    return c.body(null, 403);
-  });
+  // Answered for every origin, without a database read.
+  //
+  // A preflight is not a security boundary and must not be treated as one. It
+  // carries no body, so the mascot key the widget posts is not available here,
+  // and it is the request that FOLLOWS which decides anything. Refusing the
+  // preflight only means the browser never sends that request, so the visitor
+  // sees a CORS failure instead of the app's own answer — which is how this
+  // route was broken: it looked for the key in the query string, the widget
+  // sends it in the body, and every visitor's first message failed.
+  //
+  // Nothing leaks: the answer is identical whatever origin asks and whatever
+  // keys exist. Enforcement lives on the real request below.
+  app.options("/api/public/*", (c) => c.body(null, 204, corsHeaders(c.req.header("Origin") ?? null)));
 
   // ── A visitor says something ────────────────────────────────────────────
   app.post("/api/public/chat", async (c) => {
@@ -87,9 +88,13 @@ export function registerPublic(app: App) {
     const key = str(body?.key);
     const origin = c.req.header("Origin") ?? null;
 
+    // Refusals carry CORS headers on purpose: without them the browser reports
+    // an opaque network error and the visitor is shown nothing, when the app has
+    // a perfectly clear sentence to give them. The body is a fixed string that
+    // says nothing about whether the key exists.
     const m = key ? await mascotByKey(key) : null;
     if (!m || !originAllowed(parseList(m.allowed_origins), origin)) {
-      return c.json({ error: "This assistant is not available on this site." }, 403);
+      return c.json({ error: "This assistant is not available on this site." }, 403, corsHeaders(origin));
     }
     const cors = corsHeaders(origin);
 
@@ -205,7 +210,7 @@ export function registerPublic(app: App) {
     const origin = c.req.header("Origin") ?? null;
     const m = await mascotByKey(c.req.query("key") ?? "");
     if (!m || !originAllowed(parseList(m.allowed_origins), origin)) {
-      return c.json({ error: "This assistant is not available on this site." }, 403);
+      return c.json({ error: "This assistant is not available on this site." }, 403, corsHeaders(origin));
     }
     const cors = corsHeaders(origin);
 
@@ -229,7 +234,7 @@ export function registerPublic(app: App) {
     const origin = c.req.header("Origin") ?? null;
     const m = await mascotByKey(str(body?.key));
     if (!m || !originAllowed(parseList(m.allowed_origins), origin)) {
-      return c.json({ error: "This assistant is not available on this site." }, 403);
+      return c.json({ error: "This assistant is not available on this site." }, 403, corsHeaders(origin));
     }
     const cors = corsHeaders(origin);
 

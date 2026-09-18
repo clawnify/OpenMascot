@@ -9,19 +9,21 @@ export default defineConfig({
   resolve: { alias: { "@": path.resolve(__dirname, "./src/client") } },
   server: {
     proxy: {
+      // `clawnify dev` runs the API on 8787 and generates its own toolchain
+      // config; nothing in this repo configures the Worker.
+      //
       // On the platform every request carries a verified X-Clawnify-Org-Id that
-      // app-router injects and a client cannot forge. `vite dev` has no such
-      // perimeter, so without this the authenticated routes answer 403 on a
-      // fresh clone and the app looks broken. Dev only: the deploy pipeline
-      // drops this file.
+      // the perimeter injects and a client cannot forge. There is no perimeter
+      // in front of `vite dev`, so without these headers the authenticated
+      // routes answer 403 on a fresh clone and the app looks broken.
       "/api": {
-        target: "http://localhost:8794",
+        target: "http://localhost:8787",
         changeOrigin: true,
         headers: { "X-Clawnify-Org-Id": "local-dev-org", "X-Clawnify-Caller": "user" },
       },
-      // The widget loader. Trailing slash on purpose: a bare "/w" prefix would
-      // also swallow the admin's own screens.
-      "/w/": { target: "http://localhost:8794", changeOrigin: true },
+      // The widget loader, which lives outside /api. Trailing slash on purpose:
+      // a bare "/w" prefix would also swallow the admin's own screens.
+      "/w/": { target: "http://localhost:8787", changeOrigin: true },
     },
   },
 });

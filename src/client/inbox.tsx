@@ -89,9 +89,16 @@ export function Inbox({ mascotId, onError }: { mascotId: string; onError: (messa
     await list();
   }
 
+  // items-start on the outer grid: without it both columns stretch to the
+  // tallest row, so opening a long thread inflates the filter buttons and the
+  // search box on the left to match its height.
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
-      <div className="grid gap-3">
+    <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+      {/* flex-col, not grid: an implicit `auto` grid track sizes to the widest
+          item's max-content, so a long conversation preview widened the track
+          past the 22rem column and w-full children rendered under the thread
+          card. A flex column stretches to the real container width. */}
+      <div className="flex min-w-0 flex-col gap-3">
         <div className="flex flex-wrap gap-2">
           {FILTERS.map((f) => (
             <button
@@ -125,9 +132,9 @@ export function Inbox({ mascotId, onError }: { mascotId: string; onError: (messa
             }
           />
         ) : (
-          <ul className="grid gap-1.5">
+          <ul className="flex min-w-0 flex-col gap-1.5">
             {rows.map((r) => (
-              <li key={r.id}>
+              <li key={r.id} className="min-w-0">
                 <button
                   type="button"
                   onClick={() => void show(r.id)}
