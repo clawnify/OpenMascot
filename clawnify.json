@@ -22,16 +22,40 @@
     "storage": false
   },
   "env": {
-    "required": ["OPENROUTER_API_KEY"]
+    "required": [
+      "OPENROUTER_API_KEY"
+    ]
   },
   "api": {
     "public_routes": [
-      { "path": "/w/**", "methods": ["GET"] },
-      { "path": "/api/public/chat", "methods": ["POST", "OPTIONS"] },
-      { "path": "/api/public/messages", "methods": ["GET", "OPTIONS"] },
-      { "path": "/api/public/contact", "methods": ["POST", "OPTIONS"] }
+      {
+        "path": "/w/**",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/api/public/chat",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/api/public/messages",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/api/public/contact",
+        "methods": [
+          "POST"
+        ]
+      }
     ],
-    "server_routes": ["/w/*"]
+    "server_routes": [
+      "/w/*"
+    ]
   },
   "deploy": {
     "title": "Put your mascot on your website",
