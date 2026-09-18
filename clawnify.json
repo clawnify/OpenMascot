@@ -1,0 +1,70 @@
+{
+  "$schema": "https://app.clawnify.com/schema/v1/clawnify.json",
+  "version": 1,
+  "name": "OpenMascot",
+  "description": "Your mascot, answering visitors on your own website. One script tag puts a branded assistant on any site: it answers from content you control, captures who asked, and hands the conversation to a real person whenever you want one. Run it as an AI first responder with human takeover, or turn the AI off and use it as a plain live-chat box under your own character.",
+  "icon": "icon.svg",
+  "tags": [
+    "chat-widget",
+    "website",
+    "lead-capture",
+    "live-chat",
+    "support",
+    "marketing"
+  ],
+  "template": {
+    "displayName": "Site assistant",
+    "category": "Marketing"
+  },
+  "app": {
+    "framework": "react+hono",
+    "database": true,
+    "storage": false
+  },
+  "env": {
+    "required": ["OPENROUTER_API_KEY"]
+  },
+  "api": {
+    "public_routes": [
+      { "path": "/w/**", "methods": ["GET"] },
+      { "path": "/api/public/chat", "methods": ["POST", "OPTIONS"] },
+      { "path": "/api/public/messages", "methods": ["GET", "OPTIONS"] },
+      { "path": "/api/public/contact", "methods": ["POST", "OPTIONS"] }
+    ],
+    "server_routes": ["/w/*"]
+  },
+  "deploy": {
+    "title": "Put your mascot on your website",
+    "subtitle": "A branded assistant that answers visitors from your own content, and hands over to you when it matters.",
+    "prompts": [
+      {
+        "key": "mascot_name",
+        "label": "What is your mascot called?",
+        "placeholder": "Pip",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "site_domain",
+        "label": "Which website will it live on?",
+        "placeholder": "acme.com",
+        "type": "text",
+        "required": true
+      },
+      {
+        "key": "about",
+        "label": "In a sentence or two, what does your company do?",
+        "placeholder": "We help Dutch brands sell on Amazon, Bol and Zalando.",
+        "type": "textarea",
+        "required": true
+      },
+      {
+        "key": "booking_url",
+        "label": "Where should it send someone who wants to book a meeting?",
+        "placeholder": "https://cal.com/acme/intro",
+        "type": "text"
+      }
+    ]
+  },
+  "agent": "agent.md"
+}
