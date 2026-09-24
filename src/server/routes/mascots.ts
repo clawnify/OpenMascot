@@ -5,6 +5,7 @@
 import { createRoute, orgId, z } from "@clawnify/app";
 import { get, query, run } from "../db.js";
 import { fail, now, ok, OkSchema, paginate, PaginationQuery, publicKey, uid, type App } from "../env.js";
+import { SHAPE_KEYS } from "../character.js";
 
 const MascotSchema = z
   .object({
@@ -13,6 +14,9 @@ const MascotSchema = z
     name: z.string(),
     avatar_url: z.string().nullable(),
     accent: z.string(),
+    accent2: z.string().nullable(),
+    character_shape: z.string(),
+    character_eyes: z.boolean(),
     greeting: z.string(),
     tagline: z.string(),
     mode: z.enum(["ai", "human"]),
@@ -32,6 +36,10 @@ const WriteSchema = z.object({
   tagline: z.string().max(120).default(""),
   greeting: z.string().max(400).default(""),
   accent: z.string().max(32).default("#4f46e5"),
+  accent2: z.string().max(32).nullish(),
+  // "" is a real choice: no drawn character, keeping whatever the install had.
+  character_shape: z.enum(["", ...SHAPE_KEYS] as [string, ...string[]]).default(""),
+  character_eyes: z.boolean().default(true),
   avatar_url: z.string().max(500).nullish(),
   mode: z.enum(["ai", "human"]).default("ai"),
   suggested: z.array(z.string().max(120)).max(6).default([]),
@@ -49,6 +57,9 @@ interface Row {
   name: string;
   avatar_url: string | null;
   accent: string;
+  accent2: string | null;
+  character_shape: string;
+  character_eyes: number;
   greeting: string;
   tagline: string;
   mode: string;
@@ -62,7 +73,8 @@ interface Row {
   created_at: string;
 }
 
-const COLUMNS = `id, key, name, avatar_url, accent, greeting, tagline, mode, suggested, booking_url,
+const COLUMNS = `id, key, name, avatar_url, accent, accent2, character_shape, character_eyes,
+       greeting, tagline, mode, suggested, booking_url,
        handoff_message, allowed_origins, ai_instructions, daily_reply_cap, locale, created_at`;
 
 function shape(r: Row) {
@@ -74,7 +86,7 @@ function shape(r: Row) {
       return [];
     }
   };
-  return { ...r, suggested: list(r.suggested), allowed_origins: list(r.allowed_origins) };
+  return { ...r, suggested: list(r.suggested), allowed_origins: list(r.allowed_origins), character_eyes: r.character_eyes === 1 };
 }
 
 export function registerMascots(app: App) {
@@ -121,12 +133,14 @@ export function registerMascots(app: App) {
     const id = uid();
     const at = now();
     await run(
-      `INSERT INTO mascots (id, org_id, key, name, avatar_url, accent, greeting, tagline, mode, suggested,
+      `INSERT INTO mascots (id, org_id, key, name, avatar_url, accent, accent2, character_shape,
+                            character_eyes, greeting, tagline, mode, suggested,
                             booking_url, handoff_message, allowed_origins, ai_instructions, daily_reply_cap,
                             locale, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        id, org, publicKey(), b.name, b.avatar_url ?? null, b.accent, b.greeting, b.tagline, b.mode,
+        id, org, publicKey(), b.name, b.avatar_url ?? null, b.accent, b.accent2 ?? null, b.character_shape,
+        b.character_eyes ? 1 : 0, b.greeting, b.tagline, b.mode,
         JSON.stringify(b.suggested), b.booking_url ?? null, b.handoff_message,
         JSON.stringify(b.allowed_origins), b.ai_instructions, b.daily_reply_cap, b.locale, at, at,
       ],
@@ -169,12 +183,14 @@ export function registerMascots(app: App) {
     // The key is deliberately not writable: rotating it silently breaks every
     // snippet already pasted into the customer's site.
     const changed = await run(
-      `UPDATE mascots SET name = ?, avatar_url = ?, accent = ?, greeting = ?, tagline = ?, mode = ?,
+      `UPDATE mascots SET name = ?, avatar_url = ?, accent = ?, accent2 = ?, character_shape = ?,
+              character_eyes = ?, greeting = ?, tagline = ?, mode = ?,
               suggested = ?, booking_url = ?, handoff_message = ?, allowed_origins = ?, ai_instructions = ?,
               daily_reply_cap = ?, locale = ?, updated_at = ?
         WHERE id = ? AND org_id = ?`,
       [
-        b.name, b.avatar_url ?? null, b.accent, b.greeting, b.tagline, b.mode, JSON.stringify(b.suggested),
+        b.name, b.avatar_url ?? null, b.accent, b.accent2 ?? null, b.character_shape,
+        b.character_eyes ? 1 : 0, b.greeting, b.tagline, b.mode, JSON.stringify(b.suggested),
         b.booking_url ?? null, b.handoff_message, JSON.stringify(b.allowed_origins), b.ai_instructions,
         b.daily_reply_cap, b.locale, now(), id, org,
       ],

@@ -11,6 +11,9 @@ export interface MascotRow {
   name: string;
   avatar_url: string | null;
   accent: string;
+  accent2: string | null;
+  character_shape: string;
+  character_eyes: number;
   greeting: string;
   tagline: string;
   mode: string;
@@ -31,7 +34,8 @@ export interface ConversationRow {
   status: string;
 }
 
-const MASCOT_COLUMNS = `id, org_id, key, name, avatar_url, accent, greeting, tagline, mode,
+const MASCOT_COLUMNS = `id, org_id, key, name, avatar_url, accent, accent2, character_shape,
+       character_eyes, greeting, tagline, mode,
        suggested, booking_url, handoff_message, allowed_origins, ai_instructions,
        daily_reply_cap, locale`;
 
