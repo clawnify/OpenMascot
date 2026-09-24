@@ -17,10 +17,24 @@ const PATHS: Record<View, string> = {
   settings: "/settings",
 };
 
+/**
+ * Which screen an incoming path means.
+ *
+ * The dashboard deep-links into an app by loading it at a path — `?at=/knowledge`
+ * on the host becomes `/knowledge` in the iframe — and it restores that path on
+ * reload. An app that always boots to its home screen silently ignores both: the
+ * link lands, the URL is right, and the wrong screen renders.
+ */
+function viewFromPath(): View {
+  const path = window.location.pathname.replace(/\/+$/, "") || "/";
+  const hit = (Object.keys(PATHS) as View[]).find((v) => PATHS[v] === path);
+  return hit ?? "overview";
+}
+
 export function App() {
   const [mascots, setMascots] = useState<Mascot[] | null>(null);
   const [current, setCurrent] = useState<string | null>(null);
-  const [view, setView] = useState<View>("overview");
+  const [view, setView] = useState<View>(viewFromPath);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [error, setError] = useState("");
 
