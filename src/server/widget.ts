@@ -130,7 +130,11 @@ const SCRIPT = String.raw`(function () {
     ".head .av.om-has{background:rgba(255,255,255,.92)}",
     "@media (prefers-reduced-motion:reduce){.om-body,.om-eyes{animation:none !important}}",
     ".sent{font-size:12px;color:#71717a;text-align:center;padding:2px 4px 0}",
-    ".foot{font-size:11px;color:#a1a1aa;text-align:center;padding:0 0 8px;background:#fff}",
+    // margin:0 is load-bearing. This is a <p>, and :host{all:initial} does not
+    // reach descendants, so it kept the user-agent's 1em top and bottom margin.
+    // That put 23px above the line and 19px below it. The bar's own 12px of
+    // bottom padding is the gap above, so the padding below matches it.
+    ".foot{font-size:11px;color:#a1a1aa;text-align:center;margin:0;padding:0 0 12px;background:#fff}",
     ".foot a{color:#a1a1aa}",
   ].join("");
   root.appendChild(style);
