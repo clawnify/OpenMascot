@@ -18,6 +18,8 @@ export interface WidgetConfig {
   greeting: string;
   tagline: string;
   suggested: string[];
+  /** Only used by the preview route, which addresses the mascot directly. */
+  mascotId: string;
   /** What reads on the brand colour. Derived, never configured. */
   ink: string;
   /** Pre-rendered character for the launcher and the panel header, or "" for
@@ -39,15 +41,26 @@ const SCRIPT = String.raw`(function () {
   window.__openMascot = window.__openMascot || {};
   window.__openMascot[CFG.key] = true;
 
+  // Preview: the dashboard loads the same script with data-preview, and the
+  // widget then answers from the authenticated, stateless route instead. It is
+  // the real widget, not a mock of it, so what the owner hears is what a
+  // visitor hears. Marking a script tag proves nothing on its own — the route
+  // refuses anyone without an org identity — so this flag is a mode, not a key.
+  var SELF = document.currentScript;
+  var PREVIEW = !!(SELF && SELF.hasAttribute("data-preview"));
+
   var STORE = "openmascot:" + CFG.key;
   var state = { open: false, convo: null, token: null, status: "ai", last: "", busy: false, asked: false };
+  /** Preview holds its own transcript, because the server keeps none. */
+  var turns = [];
 
   try {
-    var saved = JSON.parse(localStorage.getItem(STORE) || "null");
+    var saved = PREVIEW ? null : JSON.parse(localStorage.getItem(STORE) || "null");
     if (saved && saved.convo && saved.token) { state.convo = saved.convo; state.token = saved.token; state.last = saved.last || ""; }
   } catch (e) {}
 
   function remember() {
+    if (PREVIEW) return;
     try { localStorage.setItem(STORE, JSON.stringify({ convo: state.convo, token: state.token, last: state.last })); } catch (e) {}
   }
 
@@ -192,6 +205,9 @@ const SCRIPT = String.raw`(function () {
   var askField = root.querySelector(".ask input");
 
   root.querySelector(".launch").addEventListener("click", toggle);
+  // Open on arrival in preview: the owner came to this screen to try it, and a
+  // preview that needs finding is one nobody uses.
+  if (PREVIEW) toggle();
   root.querySelector("[data-close]").addEventListener("click", toggle);
   bar.addEventListener("submit", function (e) { e.preventDefault(); say(field.value); });
   field.addEventListener("keydown", function (e) {
@@ -201,6 +217,7 @@ const SCRIPT = String.raw`(function () {
     e.preventDefault();
     var email = askField.value.trim();
     if (!email) return;
+    if (PREVIEW) { ask.hidden = true; state.asked = true; return; }
     post("/api/public/contact", { key: CFG.key, conversation: state.convo, token: state.token, email: email });
     ask.hidden = true;
     state.asked = true;
@@ -282,9 +299,26 @@ const SCRIPT = String.raw`(function () {
     send.disabled = true;
     setState("think");
     thinking(true);
-    post("/api/public/chat", {
-      key: CFG.key, conversationId: state.convo, token: state.token, message: text, pageUrl: location.href,
-    })
+    turns.push({ role: "visitor", body: text });
+    var request = PREVIEW
+      ? post("/api/preview/chat", { mascot_id: CFG.mascotId, messages: turns.slice(-30) })
+          .then(function (data) {
+            // Shaped into the public route's envelope so everything downstream
+            // stays one code path.
+            if (!data) return null;
+            if (data.error) return { error: data.error };
+            turns.push({ role: "assistant", body: data.reply });
+            return {
+              conversationId: null, token: null,
+              status: data.handoff ? "waiting_human" : "ai",
+              messages: [{ id: "p" + turns.length, role: "assistant", body: data.reply, author_name: CFG.name, created_at: "" }],
+            };
+          })
+      : post("/api/public/chat", {
+          key: CFG.key, conversationId: state.convo, token: state.token, message: text, pageUrl: location.href,
+        });
+
+    request
       .then(function (data) {
         thinking(false);
         if (!data) return;
@@ -325,7 +359,7 @@ const SCRIPT = String.raw`(function () {
   // that keeps polling on every page of a site nobody is chatting on is a cost
   // the customer never agreed to.
   function poll() {
-    if (!state.open || !state.convo) return;
+    if (PREVIEW || !state.open || !state.convo) return;
     var url = CFG.origin + "/api/public/messages?key=" + encodeURIComponent(CFG.key) +
       "&conversation=" + encodeURIComponent(state.convo) +
       "&token=" + encodeURIComponent(state.token) +
@@ -345,7 +379,13 @@ const SCRIPT = String.raw`(function () {
   }
 
   function post(path, body) {
-    return fetch(CFG.origin + path, {
+    // Preview always runs inside the app's own page, so it posts relative. The
+    // absolute origin is for the embedded case, where the widget is on somebody
+    // else's site and has to name where to go. Using it in preview sends the
+    // request cross-origin to the API host, which strips the identity the
+    // authenticated route needs.
+    var url = PREVIEW ? path : CFG.origin + path;
+    return fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
