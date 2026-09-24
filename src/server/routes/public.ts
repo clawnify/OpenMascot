@@ -78,6 +78,7 @@ export function registerPublic(app: App) {
         greeting: m.greeting || `Hi, I'm ${m.name}. Ask me anything.`,
         tagline: m.tagline,
         suggested: defaultSuggestions(m.suggested),
+        mascotId: m.id,
         ink: contrastOn(m.accent),
         charLaunch: drawn ? characterSvg(spec, 38, "l") : "",
         charHead: drawn ? characterSvg(spec, 26, "h") : "",

@@ -9,6 +9,7 @@ import type { Env } from "./env.js";
 import { registerMascots } from "./routes/mascots.js";
 import { registerSources } from "./routes/sources.js";
 import { registerInbox } from "./routes/inbox.js";
+import { registerPreview } from "./routes/preview.js";
 import { registerPublic } from "./routes/public.js";
 
 const app = createApp<Env>({
@@ -26,6 +27,7 @@ app.onError((err, c) => {
 registerMascots(app);
 registerSources(app);
 registerInbox(app);
+registerPreview(app);
 
 // Last, and off the OpenAPI surface: the widget loader and the three routes a
 // visitor's browser calls. Registered after the authenticated routes so a

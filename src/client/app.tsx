@@ -1,6 +1,6 @@
 // The shell: which mascot you are looking at, and which of its four screens.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppNav, reportLocation, type AppNavItem } from "@clawnify/app/client";
 import { api, type Mascot, type MascotWrite, type Overview } from "./api";
 import { Card, Empty, Field, inputClass, primaryClass, Pill } from "./ui";
@@ -150,6 +150,33 @@ const SUBTITLE: Record<View, string> = {
   settings: "Who it is, where it lives, and what it may spend.",
 };
 
+/**
+ * The real widget, loaded on the Overview so the owner can hear what a visitor
+ * would hear.
+ *
+ * It loads the same script a customer's site loads, marked data-preview, which
+ * points it at the stateless route. Rendering a lookalike in React instead would
+ * drift from the thing it claims to preview within a release or two, and the
+ * first person to notice would be a customer.
+ */
+function TryIt({ mascotKey }: { mascotKey: string }) {
+  const mounted = useRef(false);
+  useEffect(() => {
+    if (mounted.current) return;
+    mounted.current = true;
+    const s = document.createElement("script");
+    // The widget is cached at the edge for two minutes, which is right for a
+    // script fetched on every page view of a customer's site and wrong here:
+    // the preview exists to show the current configuration, so an owner who
+    // changes a setting and comes back must not be shown the previous one.
+    s.src = `/w/${mascotKey}.js?t=${Date.now()}`;
+    s.async = true;
+    s.setAttribute("data-preview", "");
+    document.body.appendChild(s);
+  }, [mascotKey]);
+  return null;
+}
+
 function OverviewScreen({
   mascot,
   counts,
@@ -162,6 +189,7 @@ function OverviewScreen({
   const ready = mascot.allowed_origins.length > 0;
   return (
     <div className="grid gap-5">
+      <TryIt mascotKey={mascot.key} />
       <Card
         title={mascot.name}
         hint={mascot.mode === "ai" ? "Answers on its own, and you can take any conversation over." : "Takes messages. Every reply is yours."}
@@ -190,6 +218,19 @@ function OverviewScreen({
           </button>
         </Card>
       )}
+
+      <Card
+        title="Try it"
+        hint="It is open in the corner, answering exactly as it would on your site. Nothing you say here is kept."
+      >
+        <ul className="grid gap-2 text-sm text-muted">
+          <li>Ask it something a customer would ask, and something it should not know.</li>
+          <li>
+            It answers from what is in “What it knows” and nothing else, so a wrong answer here is a missing or wrong
+            source, not a setting.
+          </li>
+        </ul>
+      </Card>
 
       <Card title="How it behaves" hint="The rules it follows, whatever a visitor asks.">
         <ul className="grid gap-2 text-sm text-muted">
