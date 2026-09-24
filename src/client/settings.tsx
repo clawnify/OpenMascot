@@ -6,6 +6,58 @@ import { Card, Confirm, Field, inputClass, primaryClass, quietClass } from "./ui
 
 const LOCALES = ["en", "nl", "de", "fr", "es", "it"];
 
+/** Mirrors the silhouettes the server can draw. Paths are duplicated here on
+ *  purpose: this is a picker preview, and importing server code into the client
+ *  bundle to save six strings would be the worse trade. */
+const SHAPES: Array<{ key: string; label: string; d: string; ey: number; eh: number }> = [
+  { key: "circle", label: "Round", d: "M50 9A41 41 0 1 1 50 91A41 41 0 1 1 50 9Z", ey: 41, eh: 15 },
+  { key: "squircle", label: "Soft square", d: "M36 10H64Q90 10 90 36V64Q90 90 64 90H36Q10 90 10 64V36Q10 10 36 10Z", ey: 41, eh: 15 },
+  { key: "pill", label: "Wide", d: "M34 24H66Q92 24 92 50Q92 76 66 76H34Q8 76 8 50Q8 24 34 24Z", ey: 42, eh: 14 },
+  { key: "hex", label: "Hexagon", d: "M44.80 11.00Q50.00 8.00 55.20 11.00L81.18 26.00Q86.37 29.00 86.37 35.00L86.37 65.00Q86.37 71.00 81.18 74.00L55.20 89.00Q50.00 92.00 44.80 89.00L18.82 74.00Q13.63 71.00 13.63 65.00L13.63 35.00Q13.63 29.00 18.82 26.00Z", ey: 42, eh: 13 },
+  { key: "drop", label: "Drop", d: "M50 6Q46 6 44 10L20 52C10 70 22 92 50 92C78 92 90 70 80 52L56 10Q54 6 50 6Z", ey: 52, eh: 15 },
+  { key: "shield", label: "Shield", d: "M38 16Q50 -2 62 16L88 62Q100 80 78 80L22 80Q0 80 12 62Z", ey: 52, eh: 14 },
+];
+
+/** Same rule as the server: ink on a light face, white on a dark one. */
+function eyeColour(fg: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(fg.trim());
+  if (!m) return "#ffffff";
+  const n = parseInt(m[1], 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => {
+    const x = c / 255;
+    return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.45 ? "#1d1d1b" : "#ffffff";
+}
+
+function Preview({ shape, fg, fg2, eyes, size }: { shape: string; fg: string; fg2: string | null; eyes: boolean; size: number }) {
+  const s = SHAPES.find((x) => x.key === shape);
+  if (!s) return <span className="text-sm text-muted">No character</span>;
+  const id = `pv-${shape}-${size}`;
+  const eye = eyeColour(fg);
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true">
+      <defs>
+        <clipPath id={id}>
+          <path d={s.d} />
+        </clipPath>
+      </defs>
+      <path d={s.d} fill={fg} />
+      {fg2 && (
+        <g clipPath={`url(#${id})`}>
+          <rect x="0" y="0" width="50" height="100" fill={fg2} />
+        </g>
+      )}
+      {eyes && (
+        <g clipPath={`url(#${id})`}>
+          <rect x="36.5" y={s.ey} width="7.5" height={s.eh} rx={s.eh / 2} fill={eye} />
+          <rect x="56" y={s.ey} width="7.5" height={s.eh} rx={s.eh / 2} fill={eye} />
+        </g>
+      )}
+    </svg>
+  );
+}
+
 export function Settings({
   mascot,
   origin,
@@ -100,6 +152,91 @@ export function Settings({
               onChange={(e) => set("suggested", e.target.value.split("\n").map((s) => s.trim()).filter(Boolean).slice(0, 6))}
             />
           </Field>
+        </div>
+      </Card>
+
+      <Card
+        title="Its face"
+        hint="Drawn rather than uploaded, because a picture is a smudge at the size a chat button actually is. It moves to show what it is doing."
+      >
+        <div className="grid gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            {SHAPES.map((sh) => (
+              <button
+                key={sh.key}
+                type="button"
+                aria-pressed={form.character_shape === sh.key}
+                aria-label={sh.label}
+                onClick={() => set("character_shape", sh.key)}
+                className={`rounded-lg p-2 ${
+                  form.character_shape === sh.key
+                    ? "bg-sunken shadow-[inset_0_0_0_2px_var(--ring)]"
+                    : "shadow-[inset_0_0_0_1px_var(--border)] hover:bg-sunken"
+                }`}
+              >
+                <Preview shape={sh.key} fg={form.accent} fg2={form.accent2} eyes={form.character_eyes} size={40} />
+              </button>
+            ))}
+            <button
+              type="button"
+              aria-pressed={form.character_shape === ""}
+              onClick={() => set("character_shape", "")}
+              className={`h-14 rounded-lg px-3 text-sm font-medium ${
+                form.character_shape === ""
+                  ? "bg-sunken text-foreground shadow-[inset_0_0_0_2px_var(--ring)]"
+                  : "text-muted shadow-[inset_0_0_0_1px_var(--border)] hover:bg-sunken"
+              }`}
+            >
+              None
+            </button>
+          </div>
+
+          {form.character_shape !== "" && (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Second face" hint="Paints the left half, so a flat mark reads as an object. Leave empty for one colour.">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      className="h-9 w-16 rounded-md bg-surface shadow-[inset_0_0_0_1px_var(--border)]"
+                      value={form.accent2 ?? form.accent}
+                      onChange={(e) => set("accent2", e.target.value)}
+                      aria-label="Second face colour"
+                    />
+                    {form.accent2 && (
+                      <button type="button" className={quietClass} onClick={() => set("accent2", null)}>
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </Field>
+                <Field label="Eyes" hint="They are what show whether it is thinking or waiting on you.">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={form.character_eyes}
+                      onChange={(e) => set("character_eyes", e.target.checked)}
+                    />
+                    Give it eyes
+                  </label>
+                </Field>
+              </div>
+              <div className="flex items-end gap-5 rounded-lg bg-sunken p-4">
+                <div className="text-center">
+                  <Preview shape={form.character_shape} fg={form.accent} fg2={form.accent2} eyes={form.character_eyes} size={56} />
+                  <span className="mt-1 block text-xs text-faint">launcher</span>
+                </div>
+                <div className="text-center">
+                  <Preview shape={form.character_shape} fg={form.accent} fg2={form.accent2} eyes={form.character_eyes} size={34} />
+                  <span className="mt-1 block text-xs text-faint">header</span>
+                </div>
+                <p className="flex-1 text-sm text-muted">
+                  A picture you upload is still used anywhere bigger. Here it is replaced, because these are the
+                  two sizes where a silhouette beats an illustration.
+                </p>
+              </div>
+            </>
+          )}
         </div>
       </Card>
 

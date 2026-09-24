@@ -32,6 +32,7 @@ import {
   originAllowed,
 } from "../perimeter.js";
 import { widgetScript } from "../widget.js";
+import { characterSvg, contrastOn, hasCharacter } from "../character.js";
 
 /** The loader is read on every page view of the customer's site and changes
  *  only when the owner edits the mascot, so it is worth caching at the edge. */
@@ -57,6 +58,16 @@ export function registerPublic(app: App) {
     if (!m) return c.text("// unknown mascot", 404, { "Content-Type": "application/javascript" });
 
     const origin = new URL(c.req.url).origin;
+    // Rendered here, at the two sizes the widget actually draws, so the script
+    // ships one silhouette rather than the whole set.
+    const spec = {
+      shape: m.character_shape,
+      fg: m.accent,
+      fg2: m.accent2,
+      eye: contrastOn(m.accent),
+      eyes: m.character_eyes === 1,
+    };
+    const drawn = hasCharacter(spec);
     return c.body(
       widgetScript({
         origin,
@@ -67,6 +78,9 @@ export function registerPublic(app: App) {
         greeting: m.greeting || `Hi, I'm ${m.name}. Ask me anything.`,
         tagline: m.tagline,
         suggested: defaultSuggestions(m.suggested),
+        ink: contrastOn(m.accent),
+        charLaunch: drawn ? characterSvg(spec, 38, "l") : "",
+        charHead: drawn ? characterSvg(spec, 26, "h") : "",
       }),
       200,
       { "Content-Type": "application/javascript; charset=utf-8", "Cache-Control": SCRIPT_CACHE },

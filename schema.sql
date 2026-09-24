@@ -3,6 +3,12 @@
 -- never drops anything, so editing this file in place is safe against a live
 -- database. Template repos carry no migrations/ folder — migrations are per
 -- deployed instance, tracked in each app's own D1.
+--
+-- LOCAL DEVELOPMENT DOES NOT RECONCILE. `clawnify dev` runs this file as-is,
+-- and every CREATE below is IF NOT EXISTS, so adding a column to a table you
+-- have already created locally is a silent no-op. Queries then fail with
+-- "no such column" while this file plainly declares it. Delete
+-- .clawnify/.wrangler/state/v3/d1 and restart to pick the change up.
 
 -- One row per assistant. An install can run several: an agency puts one on each
 -- client site, and `key` is what the embed snippet carries, so the public half
@@ -17,6 +23,18 @@ CREATE TABLE IF NOT EXISTS mascots (
   -- The customer's brand colour, stored as a value rather than a token because
   -- it is painted into a widget that runs on somebody else's stylesheet.
   accent           TEXT NOT NULL DEFAULT '#4f46e5',
+  -- A second face colour. Only some silhouettes use one: it paints the left
+  -- half, which is how a two-tone logo mark reads as a solid object rather than
+  -- a flat sticker. Null means a single flat colour.
+  accent2          TEXT,
+  -- The drawn character. One of the house silhouettes, or '' for no character
+  -- at all, which keeps the pre-character behaviour: avatar_url if the owner
+  -- set one, otherwise a plain speech bubble. Empty by default so an existing
+  -- install never has its avatar silently replaced.
+  character_shape  TEXT NOT NULL DEFAULT '',
+  -- Eyes are what carry state. A logo-derived character may not want a face, in
+  -- which case body motion carries it alone.
+  character_eyes   INTEGER NOT NULL DEFAULT 1,
   greeting         TEXT NOT NULL DEFAULT '',
   tagline          TEXT NOT NULL DEFAULT '',
   -- 'ai'    = the model answers first, a person can take any conversation over

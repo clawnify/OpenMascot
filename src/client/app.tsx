@@ -205,6 +205,11 @@ function FirstMascot({ onCreated, onError }: { onCreated: (m: Mascot) => void; o
         tagline: "",
         greeting: `Hi, I'm ${name.trim()}. Ask me anything.`,
         accent: "#4f46e5",
+        accent2: null,
+        // A new install gets a character by default. The empty shape exists for
+        // installs that predate this and already have an avatar, not for new ones.
+        character_shape: "circle",
+        character_eyes: true,
         avatar_url: null,
         mode: "ai",
         suggested: [],

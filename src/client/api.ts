@@ -22,6 +22,9 @@ export interface Mascot {
   name: string;
   avatar_url: string | null;
   accent: string;
+  accent2: string | null;
+  character_shape: string;
+  character_eyes: boolean;
   greeting: string;
   tagline: string;
   mode: Mode;
